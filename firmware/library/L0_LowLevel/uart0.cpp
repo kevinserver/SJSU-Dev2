@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include "LPC40xx.h"
-#include "uart0.min.hpp"
+#include "uart0.hpp"
 
 void uart0_init(uint32_t baud_rate)
 {
@@ -48,4 +48,9 @@ void uart0_puts(const char * c_string)
     {
         uart0_putchar(c_string[i]);
     }
+}
+
+bool uart0_return_true()
+{
+    return true;
 }
