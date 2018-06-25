@@ -1,24 +1,12 @@
+#pragma once
 #include <stdint.h>
-
-#ifndef MAX7456_H
-#define MAX7456_H
 
 // ==============================
 // MAX7456 Driver
 // ==============================
-
-void vChipSelect(bool Select);
-uint8_t vSPITransfer(uint8_t Data);
-
-// void vChipSelect(bool Select) __attribute__ ((weak));
-// uint8_t vSPITransfer(uint8_t Data) __attribute__ ((weak));
-
+// The MAX7456 is a analog video text overlay device
 class MAX7456
 {
-private:
-	void (*ChipSelect)(bool Select);
-	uint8_t (*SPITransfer)(uint8_t Data);
-
 public:
 	enum TRANSFER_MODES
 	{
@@ -67,15 +55,154 @@ public:
 	static const uint8_t DISPLAY_MIDDLE 			= ((DISPLAY_HEIGHT/DISPLAY_WIDTH)/2)-1;
 	static const uint8_t DISPLAY_CENTER				= (DISPLAY_WIDTH/2);
 
-	MAX7456(void (*nChipSelect)(bool Select), uint8_t (*nSPI)(uint8_t Data));
-	bool Initialize();
-	uint8_t VideoTransfer(uint8_t Addr, uint8_t Data, bool Write);
-	void WriteCharacterToScreen(uint16_t Position, uint8_t Character);
-	void WriteString(uint16_t Position, char * Message);
-	void ClearScreen();
-	uint16_t CoordsToPosition(uint8_t x, uint8_t y);
-	inline uint8_t READ_OPERATION(uint8_t ADDR) const;
-	inline uint8_t WRITE_OPERATION(uint8_t ADDR) const;
-};
+	MAX7456(void (*nChipSelect)(bool Select), uint8_t (*nSPI)(uint8_t Data))
+	{
+		ChipSelect = nChipSelect;
+		SPITransfer = nSPI;
+	}
+	bool Initialize()
+	{
+		//// Shift Vertical Offset defined Pixels
+		VideoTransfer(
+			HORIZONTAL_OFFSET_REG,
+			HORIZONTAL_OFFSET,
+			WRITE
+		);
+		//// Shift Vertical Offset defined Pixels
+		VideoTransfer(
+			VERTICAL_OFFSET_REG,
+			VERTICAL_OFFSET,
+			WRITE
+		);
+		//// Clear Display Memory
+		VideoTransfer(
+			DISPLAY_MEMORY_MODE,
+			DISPLAY_MEMORY_MODE_CLR,
+			WRITE
+		);
+		//// Enable OSD
+		VideoTransfer(
+			VIDEO_MODE,
+			VIDEO_MODE_ENABLE_OSD,
+			WRITE
+		);
+		//// Read OSD Black Level Register
+		uint8_t OSDBLReg = VideoTransfer(
+			OSD_BLACK_LEVEL,
+			0x00,
+			READ
+		);
+		//// Enable Automatic Black Level Control
+		////    By clearing OSDBL[4] = 0
+		VideoTransfer(
+			OSD_BLACK_LEVEL,
+			OSDBLReg & OSD_BL_ENABLE_CONTROL,
+			WRITE
+		);
+		//// Set Display Memory to 8Bit mode
+		VideoTransfer(
+			DISPLAY_MEMORY_MODE,
+			OPERATION_MODE_8BIT,
+			WRITE
+		);
+		return true;
+	}
+	void ClearScreen()
+	{
+		VideoTransfer(
+			DISPLAY_MEMORY_MODE,
+			DISPLAY_MEMORY_MODE_CLR,
+			WRITE
+		);
+	}
+	void WriteCharacterToScreen(uint16_t Position, uint8_t Character)
+	{
+		//// Loaded 8th bit MSB to Display memory address High byte
+		//// DISPLAY_MEMORY_ADDR_H[1] is set to 0 to keep it on
+		//// Character memory mode
+		VideoTransfer(
+			DISPLAY_MEMORY_ADDR_H,
+			((Position >> 8) & 0x01),
+			WRITE
+		);
+		//// Load [7:0] bits of position
+		VideoTransfer(
+			DISPLAY_MEMORY_ADDR_L,
+			(Position & 0xFF),
+			WRITE
+		);
+		//// Load NVM Character address into display memory data
+		//// register to be written to display memory matrix
+		VideoTransfer(
+			DISPLAY_MEM_DATA_REG,
+			Character,
+			WRITE
+		);
+	}
+	void WriteString(uint16_t Position, char * Message)
+	{
+		for(uint16_t i = 0; Message[i] != 0; i++)
+		{
+			switch(Message[i])
+			{
+				case 'A' ... 'Z':
+					WriteCharacterToScreen(Position+i, NVM_A+(Message[i]-'A'));
+					break;
+				case 'a' ... 'z':
+					WriteCharacterToScreen(Position+i, NVM_a+(Message[i]-'a'));
+					break;
+				case '1' ... '9':
+					WriteCharacterToScreen(Position+i, NVM_1+(Message[i]-'1'));
+					break;
+				case '0':
+					WriteCharacterToScreen(Position+i, NVM_0);
+					break;
+				case ' ':
+					WriteCharacterToScreen(Position+i, NVM__);
+					break;
+				case ':':
+					WriteCharacterToScreen(Position+i, NVM_COLON);
+					break;
+				case EMPTY_MASK:
+					WriteCharacterToScreen(Position+i, NVM_EMPTY);
+					break;
+				default:
+					WriteCharacterToScreen(Position+i, Message[i]);
+					break;
+			}
+		}
+	}
 
-#endif
+private:
+	void (*ChipSelect)(bool Select);
+	uint8_t (*SPITransfer)(uint8_t Data);
+
+	inline uint8_t READ_OPERATION(uint8_t ADDR) const
+	{
+		return (ADDR |  (1 << 7));
+	}
+	inline uint8_t WRITE_OPERATION(uint8_t ADDR) const
+	{
+		return (ADDR & ~(1 << 7));
+	}
+	uint16_t CoordsToPosition(uint8_t X, uint8_t Y)
+	{
+		return (Y*DISPLAY_WIDTH)+(X);
+	}
+	uint8_t VideoTransfer(uint8_t Addr, uint8_t Data, bool Write)
+	{
+		ChipSelect(true);
+		if(Write)
+		{
+			SPITransfer(WRITE_OPERATION(Addr));
+		}
+		else
+		{
+			SPITransfer(READ_OPERATION(Addr));
+		}
+		uint8_t result = SPITransfer(Data);
+		ChipSelect(false);
+
+		return result;
+	}
+};

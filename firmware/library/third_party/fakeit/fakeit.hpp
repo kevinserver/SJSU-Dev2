@@ -1,4 +1,5 @@
 #pragma once
+#pragma GCC system_header
 /*
  *  FakeIt - A Simplified C++ Mocking Framework
  *  Copyright (c) Eran Pe'er 2013

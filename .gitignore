@@ -1,11 +1,6 @@
 firmware/*
-firmware/**/binaries
-firmware/**/compiled
+firmware/**/build/*
 firmware/**/makefile
-firmware/**/can-dbc/*
-firmware/**/test-suite
-firmware/**/cgreen-test-suite
-firmware/**/test
 
 !firmware/library
 !firmware/HelloWorld

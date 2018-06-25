@@ -1,9 +1,10 @@
-#include "L5-testing/testing-frameworks.hpp"
+#include "L5_Testing/testing_frameworks.hpp"
+#include "max7456.hpp"
 
 FAKE_VOID_FUNC(vChipSelect, bool);
 FAKE_VALUE_FUNC(uint8_t, vSPITransfer, uint8_t);
 
-namespace maxTesting
+namespace max_testing
 {
 	MAX7456 Max(vChipSelect, vSPITransfer);
 }
@@ -18,7 +19,7 @@ TEST_CASE("Testing MAX Initialization", "[max]")
 		    return Data;
 		};
 
-		Max.Initialize();
+		max_testing::Max.Initialize();
 
 		printf("ChipSelect_fake.call_count = %d\n", vChipSelect_fake.call_count);
 		printf("SPITransfer_fake.call_count = %d\n", vSPITransfer_fake.call_count);
@@ -33,7 +34,7 @@ TEST_CASE("Testing MAX Initialization", "[max]")
 		    return Data;
 		};
 
-		Max.Initialize();
+		max_testing::Max.Initialize();
 
 		printf("ChipSelect_fake.call_count = %d\n", vChipSelect_fake.call_count);
 		printf("SPITransfer_fake.call_count = %d\n", vSPITransfer_fake.call_count);

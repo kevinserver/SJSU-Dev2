@@ -25,6 +25,7 @@ SOFTWARE.
 */
 #ifndef FAKE_FUNCTIONS
 #define FAKE_FUNCTIONS
+#pragma GCC system_header
 
 #include <stdarg.h>
 #include <string.h> /* For memset and memcpy */
